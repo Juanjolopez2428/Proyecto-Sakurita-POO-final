@@ -1,0 +1,144 @@
+{
+  "duena": {
+    "claveMaestra": "b7362895",
+    "fechaCoronacion": "2025-10-27",
+    "clientes": [
+      {
+        "dirreccionEnvio": "Dirección no registrada",
+        "telefono": 5550000,
+        "metodoPagos": [],
+        "idUsuario": 1,
+        "emailUsuario": "Juanralopez25@gmail.com",
+        "contrasena": "",
+        "rol": "CLIENTE",
+        "fechaRegistro": "2025-10-27",
+        "estadoCuenta": "ACTIVA",
+        "nombreUsuario": "Juan Lopez"
+      }
+    ],
+    "administradoresContenido": [],
+    "administradoresUsuario": [],
+    "usuariosNormales": [
+      {
+        "idUsuario": 1,
+        "emailUsuario": "Juanralopez25@gmail.com",
+        "contrasena": "HASH_2428",
+        "rol": "Normal",
+        "fechaRegistro": "2025-10-27",
+        "estadoCuenta": "ACTIVA",
+        "nombreUsuario": "Juan Lopez"
+      }
+    ],
+    "miembrosConsejo": [],
+    "productos": [
+      {
+        "idProducto": 1001,
+        "nombre": "Papa",
+        "descripcion": "Alimento",
+        "precio": 1000.0,
+        "stock": 990,
+        "fechaLanzamiento": "2025-10-27",
+        "categoria": "Comida",
+        "estadoProducto": true
+      }
+    ],
+    "categorias": [],
+    "carritos": [],
+    "lineasCarrito": [],
+    "compras": [
+      {
+        "idVenta": 5002,
+        "fechaVenta": "2025-10-27",
+        "totalVenta": 1000.0,
+        "estadoVenta": "FINALIZADA",
+        "cliente": {
+          "dirreccionEnvio": "Dir X",
+          "telefono": 123456789,
+          "metodoPagos": [],
+          "idUsuario": 201,
+          "emailUsuario": "cliente@correo.com",
+          "contrasena": "",
+          "rol": "CLIENTE",
+          "fechaRegistro": "2025-10-27",
+          "estadoCuenta": "ACTIVA",
+          "nombreUsuario": "Juan Lopez"
+        },
+        "metodoPago": {
+          "idMetodoPago": 0,
+          "NumeroMetodoPago": 0,
+          "tipo": "Tarjeta"
+        },
+        "lineasCompra": [
+          {
+            "producto": {
+              "idProducto": 1001,
+              "nombre": "Papa",
+              "descripcion": "Alimento",
+              "precio": 1000.0,
+              "stock": 1000,
+              "fechaLanzamiento": "2025-10-27",
+              "categoria": "Comida",
+              "estadoProducto": true
+            },
+            "cantidad": 1,
+            "subtotal": 1000.0
+          }
+        ]
+      },
+      {
+        "idVenta": 5001,
+        "fechaVenta": "2025-10-27",
+        "totalVenta": 10000.0,
+        "estadoVenta": "FINALIZADA",
+        "cliente": {
+          "dirreccionEnvio": "Dirección no registrada",
+          "telefono": 5550000,
+          "metodoPagos": [],
+          "idUsuario": 1,
+          "emailUsuario": "Juanralopez25@gmail.com",
+          "contrasena": "",
+          "rol": "CLIENTE",
+          "fechaRegistro": "2025-10-27",
+          "estadoCuenta": "ACTIVA",
+          "nombreUsuario": "Juan Lopez"
+        },
+        "metodoPago": {
+          "idMetodoPago": 0,
+          "NumeroMetodoPago": 0,
+          "tipo": "Tarjeta de Crédito"
+        },
+        "lineasCompra": [
+          {
+            "producto": {
+              "idProducto": 1001,
+              "nombre": "Papa",
+              "descripcion": "Alimento",
+              "precio": 1000.0,
+              "stock": 990,
+              "fechaLanzamiento": "2025-10-27",
+              "categoria": "Comida",
+              "estadoProducto": true
+            },
+            "cantidad": 10,
+            "subtotal": 10000.0
+          }
+        ]
+      }
+    ],
+    "lineasCompra": [],
+    "metodosPago": [],
+    "desarrolladores": [],
+    "fabricas": [],
+    "registroEsclavos": {},
+    "consejoSombrio": {
+      "idConsejo": 0
+    },
+    "idUsuario": 999,
+    "emailUsuario": "duena@darkcorp.com",
+    "contrasena": "b7362895",
+    "rol": "DUENA",
+    "fechaRegistro": "2025-10-27",
+    "estadoCuenta": "ACTIVA",
+    "nombreUsuario": "Dark Mistress"
+  }
+}
