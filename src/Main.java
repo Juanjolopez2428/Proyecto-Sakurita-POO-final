@@ -356,10 +356,10 @@ public class Main {
 
                     try {
                         Producto nuevo = new Producto(nextProductoId++, nombre, descripcion, precio, stock, LocalDate.now().toString(), categoria);
-                        // lo agrega a la colección global en borrador
+                       
                         nuevo.setEstadoProducto(false);
                         duena.agregarProducto(nuevo);
-                        // también puede mantener una copia local si lo deseas (no obligatorio)
+                        
                         Persistencia.guardar(RUTA_JSON, sistema);
                         System.out.println(" Producto creado como borrador (ID=" + nuevo.getIdProducto() + ").");
                     } catch (ProductoInvalidoException e) {
