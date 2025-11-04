@@ -1,113 +1,204 @@
-import Persistencia.Persistencia;
-import Persistencia.SistemaGlowUp;
+import Persistencia.DAO.*;
 import Usuarios.*;
 import Ventas.*;
 import Excepciones.*;
+import Persistencia.DAO.MongoConexion;
+import Produccion.Fabrica;
+import OperacionesOcultas.TrabajadorEsclavizado;
 
+import com.mongodb.client.MongoDatabase;
 import java.time.LocalDate;
-import java.util.Comparator;
-import java.util.Optional;
-import java.util.Scanner;
-
+import java.util.*;
 
 public class Main {
-    private static final String RUTA_JSON = "sistema_glowup.json";
     private static final Scanner scanner = new Scanner(System.in);
 
-    private static SistemaGlowUp sistema;
-    private static Duena duena;                 // referencia rápida
     private static Usuario usuarioActual = null;
+    private static Duena duena = null;
 
-    // IDs auto calculados
+    private static UsuarioDAO usuarioDAO = null;
+    private static ProductoDAO productoDAO = null;
+    private static CompraDAO compraDAO = null;
+    private static CategoriaDAO categoriaDAO = null;
+
+    // DAOs para Operaciones Ocultas
+    private static FabricaDAO fabricaDAO = null;
+    private static TrabajadorDAO trabajadorDAO = null;
+
     private static int nextProductoId = 1001;
     private static int nextUsuarioId = 1;
     private static int nextCompraId = 5001;
     private static int nextClienteId = 200;
+    private static int nextCategoriaId = 1;
+
+    // Contadores para Operaciones Ocultas
+    private static int nextFabricaId = 1;
+    private static int nextTrabajadorId = 1;
 
     public static void main(String[] args) {
-        // Cargar sistema
-        sistema = Persistencia.cargar(RUTA_JSON, SistemaGlowUp.class);
-        if (sistema == null) {
-            sistema = new SistemaGlowUp(); // crea dueña por defecto
-            System.out.println("(Inicialización) Sistema nuevo creado.");
-        } else {
-            System.out.println(" Datos cargados desde persistencia.");
+        MongoDatabase db = MongoConexion.conectar();
+        if (db == null) {
+            System.err.println("❌ No se pudo conectar con MongoDB.");
+            return;
         }
+        System.out.println("✅ Conectado a MongoDB correctamente.");
 
-        duena = sistema.getDuena();
-        recalcularIdsDesdeDatos();
+        usuarioDAO = new UsuarioDAO(db);
+        productoDAO = new ProductoDAO(db);
+        compraDAO = new CompraDAO(db);
+        categoriaDAO = new CategoriaDAO(db);
+
+        // Inicialización de DAOs
+        fabricaDAO = new FabricaDAO(db);
+        trabajadorDAO = new TrabajadorDAO(db, fabricaDAO);
+
+        inicializarDatosBase();
 
         ejecutarMenuPrincipal();
 
-
-        Persistencia.guardar(RUTA_JSON, sistema);
-        System.out.println(" Sistema guardado. Adiós.");
+        MongoConexion.cerrarConexion();
+        System.out.println("🔒 Conexión cerrada. ¡Hasta luego!");
     }
 
-    // -
-    private static void recalcularIdsDesdeDatos() {
-        // productos
-        Optional<Integer> maxProd = duena.getProductos().stream()
-                .map(Producto::getIdProducto)
-                .max(Comparator.naturalOrder());
-        if (maxProd.isPresent()) nextProductoId = maxProd.get() + 1;
+    // ------------------------------------------------------------------
+// Inicialización de datos base
+// ------------------------------------------------------------------
+    private static void inicializarDatosBase() {
+        System.out.println("\n📦 Verificando datos iniciales...");
 
-        // usuarios normales
-        Optional<Integer> maxUser = duena.getUsuariosNormales().stream()
-                .map(Usuario::getIdUsuario)
-                .max(Comparator.naturalOrder());
-        if (maxUser.isPresent()) nextUsuarioId = maxUser.get() + 1;
+        List<Usuario> usuarios = usuarioDAO.obtenerTodos();
+        List<Producto> productos = productoDAO.obtenerTodos();
+        List<Categoria> categorias = categoriaDAO.listarCategorias();
 
-        // compras
-        Optional<Integer> maxCompra = duena.getCompras().stream()
-                .map(Compra::getIdVenta)
-                .max(Comparator.naturalOrder());
-        if (maxCompra.isPresent()) nextCompraId = maxCompra.get() + 1;
+        String hash1234 = Integer.toHexString("1234".hashCode());
 
-        // clientes (si hay clientes externos)
-        Optional<Integer> maxCliente = duena.getClientes().stream()
-                .map(Cliente::getIdUsuario)
-                .max(Comparator.naturalOrder());
-        if (maxCliente.isPresent()) nextClienteId = maxCliente.get() + 1;
+
+        // --- USUARIOS ---
+        if (usuarios == null || usuarios.isEmpty()) {
+            Duena du = new Duena(0, "duena@sakurita.com", hash1234, "Dueña Principal", hash1234);
+            usuarioDAO.insertarUsuario(du);
+            duena = du;
+
+            AdministradorContenido ac = new AdministradorContenido(nextUsuarioId++, "admincontenido@sakurita.com", hash1234, "AdministradorContenido", LocalDate.now(), "ACTIVA", "Admin Contenido");
+            usuarioDAO.insertarUsuario(ac);
+
+            AdministradorUsuarios au = new AdministradorUsuarios(nextUsuarioId++, "adminusuarios@sakurita.com", hash1234, "AdministradorUsuarios", LocalDate.now(), "ACTIVA", "Admin Usuarios");
+            usuarioDAO.insertarUsuario(au);
+
+            UsuarioNormal un = new UsuarioNormal(nextUsuarioId++, "usuario@sakurita.com", hash1234, "Normal", LocalDate.now(), "ACTIVA", "Usuario Normal");
+            usuarioDAO.insertarUsuario(un);
+
+            System.out.println("✅ Usuarios iniciales creados.");
+        } else {
+            Optional<Usuario> optDu = usuarios.stream().filter(u -> u instanceof Duena).findFirst();
+            duena = optDu.map(u -> (Duena) u).orElseGet(() -> {
+                Duena d = new Duena(0, "duena@sakurita.com", hash1234, "Dueña Principal", hash1234);
+                usuarioDAO.insertarUsuario(d);
+                return d;
+            });
+            usuarios.stream().mapToInt(Usuario::getIdUsuario).max().ifPresent(max -> nextUsuarioId = max + 1);
+        }
+
+        // --- CATEGORÍAS ---
+        if (categorias == null || categorias.isEmpty()) {
+            try {
+                Categoria cuidadoFacial = new Categoria("Productos para el cuidado del rostro", nextCategoriaId++, "Cuidado facial");
+                Categoria maquillaje = new Categoria("Productos de maquillaje", nextCategoriaId++, "Maquillaje");
+
+                categoriaDAO.insertarCategoria(cuidadoFacial);
+                categoriaDAO.insertarCategoria(maquillaje);
+
+                System.out.println("✅ Categorías base añadidas a la DB.");
+
+            } catch (Exception e) {
+                System.err.println("⚠️ Error inesperado al inicializar categorías: " + e.getMessage());
+            }
+
+            categorias = categoriaDAO.listarCategorias();
+        }
+
+        categorias.stream().mapToInt(Categoria::getIdCategoria).max().ifPresent(max -> nextCategoriaId = max + 1);
+
+        // --- PRODUCTOS ---
+        if (productos == null || productos.isEmpty()) {
+            try {
+
+                Producto p1 = new Producto(nextProductoId++, "Mascarilla Sakura",
+                        "Mascarilla hidratante japonesa", 45000.0, 20, LocalDate.now().toString(), "Cuidado facial");
+                Producto p2 = new Producto(nextProductoId++, "Labial GlowUp",
+                        "Color duradero con brillo natural", 38000.0, 15, LocalDate.now().toString(), "Maquillaje");
+
+                p1.setEstadoProducto(true);
+                p2.setEstadoProducto(true);
+
+                productoDAO.insertarProducto(p1);
+                productoDAO.insertarProducto(p2);
+
+                System.out.println("✅ Productos iniciales añadidos.");
+            } catch (Exception e) {
+                System.err.println("⚠️ Error al crear productos iniciales: " + e.getMessage());
+            }
+        } else {
+            productos.stream().mapToInt(Producto::getIdProducto).max().ifPresent(max -> nextProductoId = max + 1);
+        }
+
+        System.out.println("✔️ Datos base listos.");
     }
 
-    // ==========================
-    // Menú principal (Login / Registro)
-    // ==========================
+    // ------------------------------------------------------------------
+// Menú principal
+// ------------------------------------------------------------------
     private static void ejecutarMenuPrincipal() {
         int opcion;
         do {
             System.out.println("\n--- MENÚ PRINCIPAL ---");
             System.out.println("1. Log-in");
             System.out.println("2. Registrar Usuario Normal");
+            System.out.println("3. Listar Categorías");
             System.out.println("0. Salir");
             System.out.print("Seleccione: ");
             opcion = leerEntero();
-            scanner.nextLine();
 
             switch (opcion) {
-                case 1:
+                case 1 -> {
                     logInUsuario();
                     if (usuarioActual != null) ejecutarMenuPorRol();
-                    break;
-                case 2:
-                    registrarUsuarioNormal();
-                    break;
-                case 0:
-                    System.out.println("Saliendo...");
-                    break;
-                default:
-                    System.out.println("Opción inválida.");
+                }
+                case 2 -> registrarUsuarioNormal();
+                case 3 -> listarCategorias();
+                case 0 -> System.out.println("👋 Saliendo...");
+                default -> System.out.println("Opción inválida.");
             }
         } while (opcion != 0);
     }
 
-    // ==========================
-    // Registro de usuario normal
-    // ==========================
+    private static void logInUsuario() {
+        System.out.println("\n--- LOGIN ---");
+        System.out.print("Email: ");
+        String email = scanner.nextLine().trim();
+        System.out.print("Contraseña: ");
+        String contrasena = scanner.nextLine();
+
+        Usuario encontrado = usuarioDAO.buscarPorEmail(email);
+
+        if (encontrado == null) {
+            System.out.println("❌ Usuario no encontrado.");
+            return;
+        }
+
+        String hashGeneradoIngresado = Integer.toHexString(contrasena.hashCode());
+
+        if (encontrado.getContrasena().equals(hashGeneradoIngresado)) {
+            usuarioActual = encontrado;
+            System.out.println("✅ Log-in exitoso como " + encontrado.getRol());
+        } else {
+            System.out.println("❌ Contraseña incorrecta.");
+        }
+    }
+
     private static void registrarUsuarioNormal() {
+        System.out.println("\n--- Registro Usuario Normal ---");
         try {
-            System.out.println("\n--- Registro de Usuario Normal ---");
             System.out.print("Nombre: ");
             String nombre = scanner.nextLine().trim();
             System.out.print("Email: ");
@@ -115,183 +206,252 @@ public class Main {
             System.out.print("Contraseña: ");
             String contrasena = scanner.nextLine();
 
-            // validaciones básicas
             if (nombre.isEmpty() || email.isEmpty() || contrasena.length() < 4) {
                 throw new UsuarioInvalidoException("Nombre/email vacíos o contraseña < 4 caracteres.");
             }
-
-            boolean existe = duena.getUsuariosNormales().stream()
-                    .anyMatch(u -> u.getEmailUsuario().equalsIgnoreCase(email));
-            if (existe) {
+            if (usuarioDAO.buscarPorEmail(email) != null) {
                 throw new UsuarioInvalidoException("El email ya está registrado.");
             }
 
-            UsuarioNormal nuevo = new UsuarioNormal(
-                    nextUsuarioId++,
+            String hashNuevoUsuario = Integer.toHexString(contrasena.hashCode());
+
+            UsuarioNormal nuevo = new UsuarioNormal(nextUsuarioId++,
                     email,
-                    contrasena,
+                    hashNuevoUsuario,
                     "Normal",
                     LocalDate.now(),
                     "ACTIVA",
-                    nombre
-            );
+                    nombre);
 
-            duena.registrarUsuarioNormal(nuevo);
-            Persistencia.guardar(RUTA_JSON, sistema);
-            System.out.println(" Usuario registrado (ID=" + nuevo.getIdUsuario() + ").");
+            usuarioDAO.insertarUsuario(nuevo);
+            System.out.println("✅ Usuario registrado (ID=" + nuevo.getIdUsuario() + ").");
         } catch (UsuarioInvalidoException e) {
-            System.out.println( e.getMessage());
+            System.out.println("⚠️ Error: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("⚠️ Error inesperado al registrar: " + e.getMessage());
         }
     }
 
-    // =====
-    // Login
-    // =====
-    private static void logInUsuario() {
-        System.out.println("\n--- Log-in ---");
-        System.out.print("Email: ");
-        String email = scanner.nextLine().trim();
-        System.out.print("Contraseña: ");
-        String contrasena = scanner.nextLine();
+// ------------------------------------------------------------------
+// Métodos de Categoría y Producto
+// ------------------------------------------------------------------
 
+    private static void crearCategoria() {
+        System.out.println("\n--- Crear Nueva Categoría ---");
+        int id = nextCategoriaId;
 
-        if (duena.getEmailUsuario().equalsIgnoreCase(email)) {
-            String hashIngresado = Integer.toHexString(contrasena.hashCode());
-            if (hashIngresado.equals(duena.getContrasena())) {
-                usuarioActual = duena;
-                System.out.println(" Log-in exitoso como DUEÑA: " + duena.getNombreUsuario());
-                return;
-            } else {
-                System.out.println(" Contraseña incorrecta para la Dueña.");
-                return;
-            }
+        System.out.print("Nombre de la categoría (ej: Maquillaje de ojos): ");
+        String nombre = scanner.nextLine().trim();
+
+        System.out.print("Descripción de la categoría: ");
+        String descripcion = scanner.nextLine().trim();
+
+        if (nombre.isEmpty() || descripcion.isEmpty()) {
+            System.out.println("❌ Error: El nombre y la descripción no pueden estar vacíos.");
+            return;
         }
 
-        // 2) Intentar como AdministradorContenido
-        Optional<AdministradorContenido> adminContenidoOpt = duena.getAdministradoresContenido().stream()
-                .filter(a -> a.getEmailUsuario().equalsIgnoreCase(email))
-                .findFirst();
-        if (adminContenidoOpt.isPresent()) {
-            // adminContenido usa simpleHash (implementación en tu clase): comparamos
-            String hash = Integer.toHexString(contrasena.hashCode());
-            if (hash.equals(adminContenidoOpt.get().getContrasena())) {
-                usuarioActual = adminContenidoOpt.get();
-                System.out.println(" Log-in exitoso como Administrador de Contenido: " + usuarioActual.getNombreUsuario());
-                return;
-            } else {
-                System.out.println(" Contraseña incorrecta para AdministradorContenido.");
-                return;
-            }
-        }
+        try {
+            Categoria nueva = new Categoria(descripcion, id, nombre);
+            categoriaDAO.insertarCategoria(nueva);
 
-        // 3) Intentar como AdministradorUsuarios
-        Optional<AdministradorUsuarios> adminUsuariosOpt = duena.getAdministradoresUsuario().stream()
-                .filter(a -> a.getEmailUsuario().equalsIgnoreCase(email))
-                .findFirst();
-        if (adminUsuariosOpt.isPresent()) {
-            String hash = Integer.toHexString(contrasena.hashCode());
-            if (hash.equals(adminUsuariosOpt.get().getContrasena())) {
-                usuarioActual = adminUsuariosOpt.get();
-                System.out.println(" Log-in exitoso como Administrador de Usuarios: " + usuarioActual.getNombreUsuario());
-                return;
-            } else {
-                System.out.println(" Contraseña incorrecta para AdministradorUsuarios.");
-                return;
-            }
-        }
+            nextCategoriaId++;
+            System.out.println("✅ Categoría '" + nombre + "' (ID: " + id + ") creada y guardada en la DB.");
 
-        // 4) Intentar como UsuarioNormal
-        String hashNormal = "HASH_" + contrasena;
-        usuarioActual = duena.getUsuariosNormales().stream()
-                .filter(u -> u.getEmailUsuario().equalsIgnoreCase(email) && u.getContrasena().equals(hashNormal))
-                .findFirst().orElse(null);
-
-        if (usuarioActual != null) {
-            System.out.println(" Log-in exitoso como Usuario Normal: " + usuarioActual.getNombreUsuario());
-        } else {
-            System.out.println(" Email o contraseña incorrectos.");
+        } catch (Exception e) {
+            System.out.println("⚠️ Error al guardar la categoría: " + e.getMessage());
         }
     }
 
+    private static void listarCategorias() {
+        System.out.println("\n--- Categorías disponibles ---");
+        List<Categoria> categorias = categoriaDAO.listarCategorias();
+        if (categorias == null || categorias.isEmpty()) {
+            System.out.println("⚠️ No hay categorías registradas.");
+            return;
+        }
+        categorias.forEach(c ->
+                System.out.println(c.getIdCategoria() + " | " + c.getNombreCategoria() + " | " + c.getDescripcionCategoria()));
+    }
 
+    private static void crearProducto() {
+        try {
+            System.out.println("\n--- Crear Producto ---");
+            System.out.print("Nombre: ");
+            String nombre = scanner.nextLine();
+            System.out.print("Descripción: ");
+            String descripcion = scanner.nextLine();
+            System.out.print("Precio: ");
+            double precio = leerDouble();
+            System.out.print("Stock: ");
+            int stock = leerEntero();
+            System.out.print("Categoría: ");
+            String categoria = scanner.nextLine();
+
+            if (precio <= 0) throw new ProductoInvalidoException("Precio debe ser mayor a 0");
+            if (stock < 0) throw new ProductoInvalidoException("Stock no puede ser negativo");
+
+            Producto nuevo = new Producto(nextProductoId++, nombre, descripcion, precio, stock, LocalDate.now().toString(), categoria);
+            nuevo.setEstadoProducto(true);
+
+            productoDAO.insertarProducto(nuevo);
+
+            System.out.println("✅ Producto guardado correctamente.");
+        } catch (ProductoInvalidoException e) {
+            System.out.println("⚠️ Error: " + e.getMessage());
+        }
+    }
+
+    private static void listarProductos() {
+        System.out.println("\n--- Productos Disponibles ---");
+        List<Producto> todos = productoDAO.obtenerTodos();
+        if (todos == null || todos.isEmpty()) {
+            System.out.println("No hay productos.");
+            return;
+        }
+        todos.forEach(p -> System.out.println(p.getIdProducto() + " | " + p.getNombre() + " | Stock: " + p.getStock() + " | $" + p.getPrecio()));
+    }
+
+// ------------------------------------------------------------------
+// MÉTODOS DE FÁBRICA Y TRABAJADOR (EXCLUSIVO DUEÑA)
+// ------------------------------------------------------------------
+
+    private static void registrarFabrica() {
+        System.out.println("\n--- Registro de Fábrica (Producción) ---");
+
+        System.out.print("País: ");
+        String pais = scanner.nextLine();
+        System.out.print("Ciudad: ");
+        String ciudad = scanner.nextLine();
+        System.out.print("Capacidad (unidades): ");
+        int capacidad = leerEntero();
+        System.out.print("Nivel de Automatización: ");
+        String nivelAuto = scanner.nextLine();
+
+        Fabrica nueva = new Fabrica(nextFabricaId++, pais, ciudad, capacidad, nivelAuto);
+        fabricaDAO.insertarFabrica(nueva);
+    }
+
+    private static void listarFabricas() {
+        System.out.println("\n--- Fábricas Registradas ---");
+        List<Fabrica> fabricas = fabricaDAO.obtenerTodas();
+        if (fabricas.isEmpty()) {
+            System.out.println("No hay fábricas.");
+            return;
+        }
+        fabricas.forEach(f -> System.out.println(f.getIdFabrica() + " | " + f.getPais() + "/" + f.getCiudad() + " | Capacidad: " + f.getCapacidad()));
+    }
+
+    private static void registrarTrabajadorEsclavizado() {
+        System.out.println("\n--- Registro de Trabajador ---");
+
+        // 1. Seleccionar Fábrica (Asociación)
+        listarFabricas();
+        List<Fabrica> fabricas = fabricaDAO.obtenerTodas();
+        if (fabricas.isEmpty()) {
+            System.out.println("❌ No se puede registrar trabajador sin fábricas. Registre una primero.");
+            return;
+        }
+
+        System.out.print("Ingrese ID de la Fábrica para asignación: ");
+        int idFabrica = leerEntero();
+        Fabrica fabricaAsignada = fabricaDAO.buscarPorId(idFabrica);
+
+        if (fabricaAsignada == null) {
+            System.out.println("❌ Fábrica no encontrada. Trabajador no registrado.");
+            return;
+        }
+
+        // 2. Recolección de datos del Trabajador
+        System.out.print("País de Origen: ");
+        String paisOrigen = scanner.nextLine();
+        System.out.print("Edad: ");
+        int edad = leerEntero();
+        System.out.print("Estado de Salud: ");
+        String salud = scanner.nextLine();
+
+        TrabajadorEsclavizado nuevoTrabajador = new TrabajadorEsclavizado(
+                nextTrabajadorId++,
+                paisOrigen,
+                edad,
+                LocalDate.now(),
+                salud,
+                fabricaAsignada
+        );
+
+        // 3. Persistencia
+        trabajadorDAO.insertarTrabajador(nuevoTrabajador);
+
+        fabricaAsignada.agregarPersonal(nuevoTrabajador); // Actualiza la lista en memoria (opcional)
+
+        System.out.println("✅ Trabajador registrado. Asignado a: " + fabricaAsignada.getPais());
+    }
+
+    private static void listarTrabajadores() {
+        System.out.println("\n--- Listado de Trabajadores Registrados ---");
+        List<TrabajadorEsclavizado> trabajadores = trabajadorDAO.obtenerTodos();
+        if (trabajadores.isEmpty()) {
+            System.out.println("No hay trabajadores registrados en la base de datos.");
+            return;
+        }
+
+        trabajadores.forEach(t -> {
+            String fabrica = t.getAsignadoA() != null ? t.getAsignadoA().getPais() : "Sin asignar";
+            System.out.println("ID: " + t.getIdTrabajador() + " | Origen: " + t.getPaisOrigen() +
+                    " | Fábrica: " + fabrica + " | Salud: " + t.getSalud());
+        });
+    }
+
+
+    // ------------------------------------------------------------------
+// Menús por rol
+// ------------------------------------------------------------------
     private static void ejecutarMenuPorRol() {
-        if (usuarioActual instanceof Duena) {
-            menuDuena();
-        } else if (usuarioActual instanceof AdministradorContenido) {
-            menuAdministradorContenido();
-        } else if (usuarioActual instanceof AdministradorUsuarios) {
-            menuAdministradorUsuarios();
-        } else {
-            menuUsuarioNormal();
-        }
+        if (usuarioActual instanceof Duena) menuDuena();
+        else if (usuarioActual instanceof AdministradorContenido) menuAdministradorContenido();
+        else if (usuarioActual instanceof AdministradorUsuarios) menuAdministradorUsuarios();
+        else menuUsuarioNormal();
     }
-
 
     private static void menuDuena() {
         int op;
         do {
-            System.out.println("\n--- Menu DUEÑA (" + usuarioActual.getNombreUsuario() + ") ---");
-            System.out.println("1. Listar productos");
-            System.out.println("2. Alta de producto");
-            System.out.println("3. Registrar administrador contenido");
-            System.out.println("4. Registrar administrador usuarios");
-            System.out.println("5. Listar usuarios normales");
-            System.out.println("6. Listar compras");
+            System.out.println("\n--- Menú Dueña ---");
+            // Opciones Generales
+            System.out.println("1. Registrar Admin Contenido");
+            System.out.println("2. Registrar Admin Usuarios");
+            System.out.println("3. Crear producto");
+            System.out.println("4. Listar productos");
+            System.out.println("5. Crear categoría");
+
+            // OPERACIONES OCULTAS (Acceso exclusivo)
+            System.out.println("6. Registrar nueva Fábrica");
+            System.out.println("7. Listar Fábricas");
+            System.out.println("8. Registrar Trabajador");
+            System.out.println("9. Listar Trabajadores");
+
             System.out.println("0. Cerrar sesión");
             System.out.print("Seleccione: ");
             op = leerEntero();
-            scanner.nextLine();
 
             switch (op) {
-                case 1 -> listarProductosAdminView();
-                case 2 -> altaProductoPorDuena();
-                case 3 -> registrarAdminContenido();
-                case 4 -> registrarAdminUsuarios();
-                case 5 -> duena.getUsuariosNormales().forEach(u ->
-                        System.out.println(u.getIdUsuario() + " | " + u.getNombreUsuario() + " | " + u.getEmailUsuario()));
-                case 6 -> duena.getCompras().forEach(System.out::println);
+                case 1 -> registrarAdminContenido();
+                case 2 -> registrarAdminUsuarios();
+                case 3 -> crearProducto();
+                case 4 -> listarProductos();
+                case 5 -> crearCategoria();
+                case 6 -> registrarFabrica();
+                case 7 -> listarFabricas();
+                case 8 -> registrarTrabajadorEsclavizado();
+                case 9 -> listarTrabajadores();
                 case 0 -> usuarioActual = null;
                 default -> System.out.println("Opción inválida.");
             }
         } while (usuarioActual != null);
-    }
-
-    private static void listarProductosAdminView() {
-        System.out.println("\n--- Todos los Productos (admin view) ---");
-        if (duena.getProductos().isEmpty()) {
-            System.out.println("No hay productos.");
-            return;
-        }
-        duena.getProductos().forEach(p -> System.out.println(p.toString() + ", Stock: " + p.getStock()));
-    }
-
-    private static void altaProductoPorDuena() {
-        System.out.println("\n--- Alta de Producto (Dueña) ---");
-        System.out.print("Nombre: ");
-        String nombre = scanner.nextLine();
-        System.out.print("Descripción: ");
-        String descripcion = scanner.nextLine();
-        System.out.print("Precio: ");
-        double precio = leerDouble();
-        System.out.print("Stock: ");
-        int stock = leerEntero();
-        scanner.nextLine();
-        System.out.print("Categoría: ");
-        String categoria = scanner.nextLine();
-
-        try {
-            Producto nuevo = new Producto(nextProductoId++, nombre, descripcion, precio, stock, LocalDate.now().toString(), categoria);
-            nuevo.setEstadoProducto(true);
-            duena.agregarProducto(nuevo);
-            Persistencia.guardar(RUTA_JSON, sistema);
-            System.out.println(" Producto creado y publicado (ID=" + nuevo.getIdProducto() + ").");
-        } catch (ProductoInvalidoException e) {
-            System.out.println(" Error al crear producto: " + e.getMessage());
-        }
     }
 
     private static void registrarAdminContenido() {
-        System.out.println("\n--- Registrar Administrador de Contenido ---");
+        System.out.println("\n--- Registrar Admin Contenido ---");
         System.out.print("Nombre: ");
         String nombre = scanner.nextLine();
         System.out.print("Email: ");
@@ -299,15 +459,21 @@ public class Main {
         System.out.print("Contraseña: ");
         String contrasena = scanner.nextLine();
 
-        AdministradorContenido admin = new AdministradorContenido(nextUsuarioId++, email, contrasena,
-                "AdministradorContenido", LocalDate.now(), "ACTIVA", nombre);
-        duena.registrarAdministradorContenido(admin);
-        Persistencia.guardar(RUTA_JSON, sistema);
-        System.out.println(" AdministradorContenido registrado (ID=" + admin.getIdUsuario() + ").");
+        String hashAdmin = Integer.toHexString(contrasena.hashCode());
+
+        AdministradorContenido admin = new AdministradorContenido(nextUsuarioId++,
+                email,
+                hashAdmin,
+                "AdministradorContenido",
+                LocalDate.now(),
+                "ACTIVA",
+                nombre);
+        usuarioDAO.insertarUsuario(admin);
+        System.out.println("✅ AdministradorContenido registrado.");
     }
 
     private static void registrarAdminUsuarios() {
-        System.out.println("\n--- Registrar Administrador de Usuarios ---");
+        System.out.println("\n--- Registrar Admin Usuarios ---");
         System.out.print("Nombre: ");
         String nombre = scanner.nextLine();
         System.out.print("Email: ");
@@ -315,272 +481,213 @@ public class Main {
         System.out.print("Contraseña: ");
         String contrasena = scanner.nextLine();
 
-        AdministradorUsuarios admin = new AdministradorUsuarios(nextUsuarioId++, email, contrasena,
-                "AdministradorUsuarios", LocalDate.now(), "ACTIVA", nombre);
-        duena.registrarAdminUsuario(admin);
-        Persistencia.guardar(RUTA_JSON, sistema);
-        System.out.println(" AdministradorUsuarios registrado (ID=" + admin.getIdUsuario() + ").");
+        String hashAdmin = Integer.toHexString(contrasena.hashCode());
+
+        AdministradorUsuarios admin = new AdministradorUsuarios(nextUsuarioId++,
+                email,
+                hashAdmin,
+                "AdministradorUsuarios",
+                LocalDate.now(),
+                "ACTIVA",
+                nombre);
+        usuarioDAO.insertarUsuario(admin);
+        System.out.println("✅ AdministradorUsuarios registrado.");
     }
 
-    // ==========================
-    // Menu Administrador de Contenido
-    // ==========================
     private static void menuAdministradorContenido() {
-        AdministradorContenido admin = (AdministradorContenido) usuarioActual;
         int op;
         do {
-            System.out.println("\n--- Menu AdministradorContenido (" + admin.getNombreUsuario() + ") ---");
-            System.out.println("1. Crear producto (borrador)");
-            System.out.println("2. Publicar producto (usar ID)");
-            System.out.println("3. Despublicar producto (usar ID)");
-            System.out.println("4. Listar mis productos (borradores)");
-            System.out.println("5. Listar todos los productos (global)");
+            System.out.println("\n--- Menú AdministradorContenido ---");
+            System.out.println("1. Crear producto");
+            System.out.println("2. Listar productos");
+            System.out.println("3. Crear categoría");
             System.out.println("0. Cerrar sesión");
             System.out.print("Seleccione: ");
             op = leerEntero();
-            scanner.nextLine();
 
             switch (op) {
-                case 1 -> {
-                    System.out.print("Nombre: ");
-                    String nombre = scanner.nextLine();
-                    System.out.print("Descripción: ");
-                    String descripcion = scanner.nextLine();
-                    System.out.print("Precio: ");
-                    double precio = leerDouble();
-                    System.out.print("Stock: ");
-                    int stock = leerEntero();
-                    scanner.nextLine();
-                    System.out.print("Categoría: ");
-                    String categoria = scanner.nextLine();
-
-                    try {
-                        Producto nuevo = new Producto(nextProductoId++, nombre, descripcion, precio, stock, LocalDate.now().toString(), categoria);
-                       
-                        nuevo.setEstadoProducto(false);
-                        duena.agregarProducto(nuevo);
-                        
-                        Persistencia.guardar(RUTA_JSON, sistema);
-                        System.out.println(" Producto creado como borrador (ID=" + nuevo.getIdProducto() + ").");
-                    } catch (ProductoInvalidoException e) {
-                        System.out.println(" Error: " + e.getMessage());
-                    }
-                }
-                case 2 -> {
-                    System.out.print("ID del producto a publicar: ");
-                    int id = leerEntero();
-                    scanner.nextLine();
-                    Optional<Producto> opt = duena.getProductos().stream().filter(p -> p.getIdProducto() == id).findFirst();
-                    if (opt.isPresent()) {
-                        opt.get().setEstadoProducto(true);
-                        Persistencia.guardar(RUTA_JSON, sistema);
-                        System.out.println(" Producto publicado.");
-                    } else System.out.println("️ Producto no encontrado.");
-                }
-                case 3 -> {
-                    System.out.print("ID del producto a despublicar: ");
-                    int id = leerEntero();
-                    scanner.nextLine();
-                    Optional<Producto> opt2 = duena.getProductos().stream().filter(p -> p.getIdProducto() == id).findFirst();
-                    if (opt2.isPresent()) {
-                        opt2.get().setEstadoProducto(false);
-                        Persistencia.guardar(RUTA_JSON, sistema);
-                        System.out.println(" Producto despublicado.");
-                    } else System.out.println("️ Producto no encontrado.");
-                }
-                case 4 -> {
-                    System.out.println("--- Mis borradores / productos (global) ---");
-                    admin.verTodosLosProductos().forEach(p -> System.out.println(p.getNombre() + " | ID: " + p.getId()));
-                }
-                case 5 -> duena.getProductos().forEach(p -> System.out.println(p.toString() + ", Stock: " + p.getStock()));
+                case 1 -> crearProducto();
+                case 2 -> listarProductos();
+                case 3 -> crearCategoria();
                 case 0 -> usuarioActual = null;
                 default -> System.out.println("Opción inválida.");
             }
         } while (usuarioActual != null);
     }
 
-    // ==========================
-    // Menu Administrador de Usuarios
-    // ==========================
     private static void menuAdministradorUsuarios() {
-        AdministradorUsuarios admin = (AdministradorUsuarios) usuarioActual;
         int op;
         do {
-            System.out.println("\n--- Menu AdministradorUsuarios (" + admin.getNombreUsuario() + ") ---");
-            System.out.println("1. Crear Usuario Normal");
-            System.out.println("2. Activar Usuario por ID");
-            System.out.println("3. Desactivar Usuario por ID");
-            System.out.println("4. Listar Usuarios creados por mi");
+            System.out.println("\n--- Menú AdministradorUsuarios ---");
+            System.out.println("1. Listar usuarios");
             System.out.println("0. Cerrar sesión");
             System.out.print("Seleccione: ");
             op = leerEntero();
-            scanner.nextLine();
 
             switch (op) {
                 case 1 -> {
-                    System.out.print("Nombre: ");
-                    String nombre = scanner.nextLine();
-                    System.out.print("Email: ");
-                    String email = scanner.nextLine();
-                    System.out.print("Contraseña: ");
-                    String contrasena = scanner.nextLine();
-                    admin.crearUsuario(nextUsuarioId++, nombre, email, contrasena, "Normal", LocalDate.now());
-                    Persistencia.guardar(RUTA_JSON, sistema);
+                    List<Usuario> todos = usuarioDAO.obtenerTodos();
+                    todos.forEach(u -> System.out.println(u.getIdUsuario() + " | " + u.getNombreUsuario() + " | " + u.getEmailUsuario() + " | " + u.getRol()));
                 }
-                case 2 -> {
-                    System.out.print("ID usuario a activar: ");
-                    int idAct = leerEntero();
-                    scanner.nextLine();
-                    admin.activarUsuario(idAct);
-                    Persistencia.guardar(RUTA_JSON, sistema);
-                }
-                case 3 -> {
-                    System.out.print("ID usuario a desactivar: ");
-                    int idDes = leerEntero();
-                    scanner.nextLine();
-                    admin.desactivarUsuario(idDes);
-                    Persistencia.guardar(RUTA_JSON, sistema);
-                }
-                case 4 -> admin.listarUsuarios();
                 case 0 -> usuarioActual = null;
                 default -> System.out.println("Opción inválida.");
             }
         } while (usuarioActual != null);
     }
 
-    // ==========================
-    // Menu Usuario Normal (cliente)
-    // ==========================
     private static void menuUsuarioNormal() {
         int op;
         do {
-            System.out.println("\n--- Menu Usuario (" + usuarioActual.getNombreUsuario() + ") ---");
-            System.out.println("1. Listar productos publicados");
-            System.out.println("2. Registrar compra");
+            System.out.println("\n--- Menú Usuario Normal ---");
+            System.out.println("1. Ver productos");
+            System.out.println("2. Comprar producto");
             System.out.println("0. Cerrar sesión");
             System.out.print("Seleccione: ");
             op = leerEntero();
-            scanner.nextLine();
 
             switch (op) {
-                case 1 -> listarProductosPublicados();
+                case 1 -> listarProductos();
                 case 2 -> registrarCompra();
-                case 0 -> {
-                    usuarioActual = null;
-                    Persistencia.guardar(RUTA_JSON, sistema);
-                }
+                case 0 -> usuarioActual = null;
                 default -> System.out.println("Opción inválida.");
             }
         } while (usuarioActual != null);
     }
 
-    // ==========================
-    // Funcionalidades comunes
-    // ==========================
-    private static void listarProductosPublicados() {
-        System.out.println("\n--- Productos Disponibles ---");
-        duena.getProductos().stream()
-                .filter(p -> p.getEstadoProducto() != null && p.getEstadoProducto())
-                .forEach(p -> System.out.println(p.getIdProducto() + " | " + p.getNombre() + " | Stock: " + p.getStock() + " | $" + p.getPrecio()));
-    }
-
-    // registrarCompra usa usuarioActual como cliente
+    // ------------------------------------------------------------------
+// Métodos de Compra (LÓGICA DE CARRITO)
+// ------------------------------------------------------------------
     private static void registrarCompra() {
-        System.out.println("\n--- Registro de Compra ---");
-
-        // validar existencia de productos publicados
-        Optional<Producto> anyPublished = duena.getProductos().stream()
-                .filter(p -> p.getEstadoProducto() != null && p.getEstadoProducto())
-                .findAny();
-        if (anyPublished.isEmpty()) {
-            System.out.println(" No hay productos publicados.");
+        if (!(usuarioActual instanceof UsuarioNormal)) {
+            System.out.println("❌ Error: Solo usuarios normales pueden realizar compras.");
             return;
         }
 
-        listarProductosPublicados();
-        System.out.print("Ingrese ID del producto a comprar: ");
-        int id = leerEntero();
-        scanner.nextLine();
-
-        Producto producto = duena.getProductos().stream()
-                .filter(p -> p.getIdProducto() == id && Boolean.TRUE.equals(p.getEstadoProducto()))
-                .findFirst().orElse(null);
-        if (producto == null) {
-            System.out.println(" Producto no encontrado o no disponible.");
-            return;
-        }
-
-        System.out.print("Ingrese cantidad a comprar: ");
-        int cantidad = leerEntero();
-        if (cantidad <= 0) {
-            System.out.println(" Cantidad inválida.");
-            return;
-        }
-        if (cantidad > producto.getStock()) {
-            System.out.println(" Stock insuficiente. Disponible: " + producto.getStock());
-            return;
-        }
-
-        // preparar cliente real a partir del usuarioActual (si es UsuarioNormal)
-        Cliente clienteComprador;
-        if (usuarioActual instanceof Cliente) {
-            clienteComprador = (Cliente) usuarioActual;
-        } else if (usuarioActual instanceof UsuarioNormal) {
-            UsuarioNormal u = (UsuarioNormal) usuarioActual;
-            clienteComprador = new Cliente(
-                    u.getIdUsuario(),
-                    u.getEmailUsuario(),
-                    u.getContrasena(),
-                    "CLIENTE",
-                    u.getFechaRegistro(),
-                    u.getEstadoCuenta(),
-                    "Dirección no registrada",
-                    5550000,
-                    u.getNombreUsuario()
-            );
-            duena.registrarCliente(clienteComprador); // lo guardamos como cliente también
-        } else {
-            System.out.println(" Solo usuarios normales pueden comprar.");
-            return;
-        }
+        UsuarioNormal u = (UsuarioNormal) usuarioActual;
+        Cliente clienteComprador = new Cliente(u.getIdUsuario(),
+                u.getEmailUsuario(),
+                u.getContrasena(),
+                "CLIENTE",
+                u.getFechaRegistro(),
+                u.getEstadoCuenta(),
+                "Dirección no registrada",
+                0,
+                u.getNombreUsuario());
 
         MetodoPago mp = new MetodoPago("Tarjeta");
-        Compra compra = new Compra(nextCompraId++, clienteComprador, mp);
-        LineaCompra linea = new LineaCompra(producto, cantidad);
+        Compra compraActual = new Compra(nextCompraId, clienteComprador, mp);
 
-        try {
-            compra.agregarLinea(linea);
-            compra.finalizarCompra();
+        int op;
+        boolean compraExitosa = false;
 
-            // actualizar stock (asegúrate de que Producto tenga setStock)
-            producto.setStock(producto.getStock() - cantidad);
+        do {
+            System.out.println("\n--- Carrito de Compras ---");
+            System.out.println("Productos en carrito: " + compraActual.getLineasCompra().size());
+            System.out.println("Total parcial: $" + compraActual.getTotalVenta());
+            System.out.println("1. Agregar producto al carrito");
+            System.out.println("2. Finalizar compra (Pagar)");
+            System.out.println("0. Cancelar y salir (Vaciar carrito)");
+            System.out.print("Seleccione una opción: ");
 
-            duena.registrarCompra(compra);
-            Persistencia.guardar(RUTA_JSON, sistema);
+            op = leerEntero();
 
-            System.out.println(" Compra registrada. Resumen:");
-            System.out.println(compra);
-        } catch (CompraInvalidaException e) {
-            System.out.println(" Error en la compra: " + e.getMessage());
+            if (op == 1) {
+                listarProductos();
+                System.out.print("Ingrese ID del producto a agregar: ");
+                int id = leerEntero();
+
+                Producto producto = productoDAO.buscarPorId(id);
+                if (producto == null) {
+                    System.out.println("❌ Producto no encontrado.");
+                    continue;
+                }
+
+                System.out.print("Cantidad: ");
+                int cantidad = leerEntero();
+
+                try {
+                    if (cantidad <= 0) {
+                        System.out.println("⚠️ Cantidad inválida.");
+                        continue;
+                    }
+
+                    int stockDisponible = producto.getStock();
+
+                    if (cantidad > stockDisponible) {
+                        System.out.println("❌ Stock insuficiente. Disponible: " + stockDisponible);
+                    } else {
+                        LineaCompra linea = new LineaCompra(producto, cantidad);
+                        compraActual.agregarLinea(linea);
+                        System.out.println("✅ " + cantidad + " unidades de '" + producto.getNombre() + "' añadidas al carrito.");
+                    }
+
+                } catch (CompraInvalidaException e) {
+                    System.out.println("⚠️ Error al agregar producto: " + e.getMessage());
+                } catch (Exception e) {
+                    System.out.println("⚠️ Error inesperado: " + e.getMessage());
+                }
+
+            } else if (op == 2) {
+                if (compraActual.getLineasCompra().isEmpty()) {
+                    System.out.println("⚠️ El carrito está vacío. Agregue productos primero.");
+                    continue;
+                }
+
+                try {
+                    compraActual.finalizarCompra();
+
+                    compraDAO.insertarCompra(compraActual);
+
+                    for (LineaCompra lc : compraActual.getLineasCompra()) {
+                        Producto p = lc.getProducto();
+                        int nuevoStock = p.getStock() - lc.getCantidad();
+                        productoDAO.actualizarStock(p.getIdProducto(), nuevoStock);
+                    }
+
+                    System.out.println("\n--------------------------------------------------");
+                    System.out.println("🎉 ¡COMPRA COMPLETADA CON ÉXITO! (ID: " + compraActual.getIdVenta() + ")");
+                    System.out.println("Productos totales en líneas: " + compraActual.getLineasCompra().size());
+                    System.out.println("TOTAL FINAL: $" + compraActual.getTotalVenta());
+                    System.out.println("--------------------------------------------------");
+
+                    nextCompraId++;
+                    compraExitosa = true;
+                    op = 0;
+
+                } catch (Exception e) {
+                    System.out.println("❌ Error al finalizar la compra: " + e.getMessage());
+                    compraActual = new Compra(nextCompraId, clienteComprador, mp);
+                }
+            }
+        } while (op != 0);
+
+        if (!compraExitosa) {
+            System.out.println("🛒 Operación de compra cancelada.");
         }
     }
 
-    // ==========================
-    // Utilidades de entrada
-    // ==========================
+    // ------------------------------------------------------------------
+// Utilidades lectura
+// ------------------------------------------------------------------
     private static int leerEntero() {
+        int valor;
         while (!scanner.hasNextInt()) {
             System.out.print("Ingrese un número válido: ");
             scanner.next();
         }
-        return scanner.nextInt();
+        valor = scanner.nextInt();
+        scanner.nextLine();
+        return valor;
     }
 
     private static double leerDouble() {
+        double valor;
         while (!scanner.hasNextDouble()) {
-            System.out.print("Ingrese un número decimal válido: ");
+            System.out.print("Ingrese un número válido: ");
             scanner.next();
         }
-        return scanner.nextDouble();
+        valor = scanner.nextDouble();
+        scanner.nextLine();
+        return valor;
     }
 }
