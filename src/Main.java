@@ -38,10 +38,10 @@ public class Main {
     public static void main(String[] args) {
         MongoDatabase db = MongoConexion.conectar();
         if (db == null) {
-            System.err.println("❌ No se pudo conectar con MongoDB.");
+            System.err.println(" No se pudo conectar con MongoDB.");
             return;
         }
-        System.out.println("✅ Conectado a MongoDB correctamente.");
+        System.out.println(" Conectado a MongoDB correctamente.");
 
         usuarioDAO = new UsuarioDAO(db);
         productoDAO = new ProductoDAO(db);
@@ -57,12 +57,12 @@ public class Main {
         ejecutarMenuPrincipal();
 
         MongoConexion.cerrarConexion();
-        System.out.println("🔒 Conexión cerrada. ¡Hasta luego!");
+        System.out.println(" Conexión cerrada. ¡Hasta luego!");
     }
 
-    // ------------------------------------------------------------------
+    
 // Inicialización de datos base
-// ------------------------------------------------------------------
+
     private static void inicializarDatosBase() {
         System.out.println("\n📦 Verificando datos iniciales...");
 
@@ -111,7 +111,7 @@ public class Main {
                 System.out.println("✅ Categorías base añadidas a la DB.");
 
             } catch (Exception e) {
-                System.err.println("⚠️ Error inesperado al inicializar categorías: " + e.getMessage());
+                System.err.println(" Error inesperado al inicializar categorías: " + e.getMessage());
             }
 
             categorias = categoriaDAO.listarCategorias();
@@ -136,7 +136,7 @@ public class Main {
 
                 System.out.println("✅ Productos iniciales añadidos.");
             } catch (Exception e) {
-                System.err.println("⚠️ Error al crear productos iniciales: " + e.getMessage());
+                System.err.println(" Error al crear productos iniciales: " + e.getMessage());
             }
         } else {
             productos.stream().mapToInt(Producto::getIdProducto).max().ifPresent(max -> nextProductoId = max + 1);
@@ -145,9 +145,9 @@ public class Main {
         System.out.println("✔️ Datos base listos.");
     }
 
-    // ------------------------------------------------------------------
+   
 // Menú principal
-// ------------------------------------------------------------------
+
     private static void ejecutarMenuPrincipal() {
         int opcion;
         do {
@@ -166,7 +166,7 @@ public class Main {
                 }
                 case 2 -> registrarUsuarioNormal();
                 case 3 -> listarCategorias();
-                case 0 -> System.out.println("👋 Saliendo...");
+                case 0 -> System.out.println(" Saliendo...");
                 default -> System.out.println("Opción inválida.");
             }
         } while (opcion != 0);
@@ -182,7 +182,7 @@ public class Main {
         Usuario encontrado = usuarioDAO.buscarPorEmail(email);
 
         if (encontrado == null) {
-            System.out.println("❌ Usuario no encontrado.");
+            System.out.println(" Usuario no encontrado.");
             return;
         }
 
@@ -190,9 +190,9 @@ public class Main {
 
         if (encontrado.getContrasena().equals(hashGeneradoIngresado)) {
             usuarioActual = encontrado;
-            System.out.println("✅ Log-in exitoso como " + encontrado.getRol());
+            System.out.println(" Log-in exitoso como " + encontrado.getRol());
         } else {
-            System.out.println("❌ Contraseña incorrecta.");
+            System.out.println(" Contraseña incorrecta.");
         }
     }
 
@@ -224,17 +224,17 @@ public class Main {
                     nombre);
 
             usuarioDAO.insertarUsuario(nuevo);
-            System.out.println("✅ Usuario registrado (ID=" + nuevo.getIdUsuario() + ").");
+            System.out.println(" Usuario registrado (ID=" + nuevo.getIdUsuario() + ").");
         } catch (UsuarioInvalidoException e) {
-            System.out.println("⚠️ Error: " + e.getMessage());
+            System.out.println(" Error: " + e.getMessage());
         } catch (Exception e) {
-            System.out.println("⚠️ Error inesperado al registrar: " + e.getMessage());
+            System.out.println(" Error inesperado al registrar: " + e.getMessage());
         }
     }
 
-// ------------------------------------------------------------------
+
 // Métodos de Categoría y Producto
-// ------------------------------------------------------------------
+
 
     private static void crearCategoria() {
         System.out.println("\n--- Crear Nueva Categoría ---");
@@ -247,7 +247,7 @@ public class Main {
         String descripcion = scanner.nextLine().trim();
 
         if (nombre.isEmpty() || descripcion.isEmpty()) {
-            System.out.println("❌ Error: El nombre y la descripción no pueden estar vacíos.");
+            System.out.println(" Error: El nombre y la descripción no pueden estar vacíos.");
             return;
         }
 
@@ -256,10 +256,10 @@ public class Main {
             categoriaDAO.insertarCategoria(nueva);
 
             nextCategoriaId++;
-            System.out.println("✅ Categoría '" + nombre + "' (ID: " + id + ") creada y guardada en la DB.");
+            System.out.println(" Categoría '" + nombre + "' (ID: " + id + ") creada y guardada en la DB.");
 
         } catch (Exception e) {
-            System.out.println("⚠️ Error al guardar la categoría: " + e.getMessage());
+            System.out.println(" Error al guardar la categoría: " + e.getMessage());
         }
     }
 
@@ -267,7 +267,7 @@ public class Main {
         System.out.println("\n--- Categorías disponibles ---");
         List<Categoria> categorias = categoriaDAO.listarCategorias();
         if (categorias == null || categorias.isEmpty()) {
-            System.out.println("⚠️ No hay categorías registradas.");
+            System.out.println(" No hay categorías registradas.");
             return;
         }
         categorias.forEach(c ->
@@ -296,9 +296,9 @@ public class Main {
 
             productoDAO.insertarProducto(nuevo);
 
-            System.out.println("✅ Producto guardado correctamente.");
+            System.out.println(" Producto guardado correctamente.");
         } catch (ProductoInvalidoException e) {
-            System.out.println("⚠️ Error: " + e.getMessage());
+            System.out.println(" Error: " + e.getMessage());
         }
     }
 
@@ -312,9 +312,9 @@ public class Main {
         todos.forEach(p -> System.out.println(p.getIdProducto() + " | " + p.getNombre() + " | Stock: " + p.getStock() + " | $" + p.getPrecio()));
     }
 
-// ------------------------------------------------------------------
-// MÉTODOS DE FÁBRICA Y TRABAJADOR (EXCLUSIVO DUEÑA)
-// ------------------------------------------------------------------
+
+// MÉTODOS DE FÁBRICA Y TRABAJADOR 
+-
 
     private static void registrarFabrica() {
         System.out.println("\n--- Registro de Fábrica (Producción) ---");
@@ -345,11 +345,11 @@ public class Main {
     private static void registrarTrabajadorEsclavizado() {
         System.out.println("\n--- Registro de Trabajador ---");
 
-        // 1. Seleccionar Fábrica (Asociación)
+        //  Seleccionar Fábrica 
         listarFabricas();
         List<Fabrica> fabricas = fabricaDAO.obtenerTodas();
         if (fabricas.isEmpty()) {
-            System.out.println("❌ No se puede registrar trabajador sin fábricas. Registre una primero.");
+            System.out.println(" No se puede registrar trabajador sin fábricas. Registre una primero.");
             return;
         }
 
@@ -358,11 +358,11 @@ public class Main {
         Fabrica fabricaAsignada = fabricaDAO.buscarPorId(idFabrica);
 
         if (fabricaAsignada == null) {
-            System.out.println("❌ Fábrica no encontrada. Trabajador no registrado.");
+            System.out.println(" Fábrica no encontrada. Trabajador no registrado.");
             return;
         }
 
-        // 2. Recolección de datos del Trabajador
+        //  Recolección de datos del Trabajador
         System.out.print("País de Origen: ");
         String paisOrigen = scanner.nextLine();
         System.out.print("Edad: ");
@@ -379,12 +379,12 @@ public class Main {
                 fabricaAsignada
         );
 
-        // 3. Persistencia
+        //  Persistencia
         trabajadorDAO.insertarTrabajador(nuevoTrabajador);
 
         fabricaAsignada.agregarPersonal(nuevoTrabajador); // Actualiza la lista en memoria (opcional)
 
-        System.out.println("✅ Trabajador registrado. Asignado a: " + fabricaAsignada.getPais());
+        System.out.println(" Trabajador registrado. Asignado a: " + fabricaAsignada.getPais());
     }
 
     private static void listarTrabajadores() {
@@ -403,9 +403,9 @@ public class Main {
     }
 
 
-    // ------------------------------------------------------------------
+    
 // Menús por rol
-// ------------------------------------------------------------------
+
     private static void ejecutarMenuPorRol() {
         if (usuarioActual instanceof Duena) menuDuena();
         else if (usuarioActual instanceof AdministradorContenido) menuAdministradorContenido();
@@ -469,7 +469,7 @@ public class Main {
                 "ACTIVA",
                 nombre);
         usuarioDAO.insertarUsuario(admin);
-        System.out.println("✅ AdministradorContenido registrado.");
+        System.out.println(" AdministradorContenido registrado.");
     }
 
     private static void registrarAdminUsuarios() {
@@ -491,7 +491,7 @@ public class Main {
                 "ACTIVA",
                 nombre);
         usuarioDAO.insertarUsuario(admin);
-        System.out.println("✅ AdministradorUsuarios registrado.");
+        System.out.println(" AdministradorUsuarios registrado.");
     }
 
     private static void menuAdministradorContenido() {
@@ -554,12 +554,12 @@ public class Main {
         } while (usuarioActual != null);
     }
 
-    // ------------------------------------------------------------------
-// Métodos de Compra (LÓGICA DE CARRITO)
-// ------------------------------------------------------------------
+ 
+// Métodos de Compra 
+
     private static void registrarCompra() {
         if (!(usuarioActual instanceof UsuarioNormal)) {
-            System.out.println("❌ Error: Solo usuarios normales pueden realizar compras.");
+            System.out.println(" Error: Solo usuarios normales pueden realizar compras.");
             return;
         }
 
@@ -598,7 +598,7 @@ public class Main {
 
                 Producto producto = productoDAO.buscarPorId(id);
                 if (producto == null) {
-                    System.out.println("❌ Producto no encontrado.");
+                    System.out.println(" Producto no encontrado.");
                     continue;
                 }
 
@@ -607,29 +607,29 @@ public class Main {
 
                 try {
                     if (cantidad <= 0) {
-                        System.out.println("⚠️ Cantidad inválida.");
+                        System.out.println(" Cantidad inválida.");
                         continue;
                     }
 
                     int stockDisponible = producto.getStock();
 
                     if (cantidad > stockDisponible) {
-                        System.out.println("❌ Stock insuficiente. Disponible: " + stockDisponible);
+                        System.out.println(" Stock insuficiente. Disponible: " + stockDisponible);
                     } else {
                         LineaCompra linea = new LineaCompra(producto, cantidad);
                         compraActual.agregarLinea(linea);
-                        System.out.println("✅ " + cantidad + " unidades de '" + producto.getNombre() + "' añadidas al carrito.");
+                        System.out.println( cantidad + " unidades de '" + producto.getNombre() + "' añadidas al carrito.");
                     }
 
                 } catch (CompraInvalidaException e) {
-                    System.out.println("⚠️ Error al agregar producto: " + e.getMessage());
+                    System.out.println(" Error al agregar producto: " + e.getMessage());
                 } catch (Exception e) {
-                    System.out.println("⚠️ Error inesperado: " + e.getMessage());
+                    System.out.println(" Error inesperado: " + e.getMessage());
                 }
 
             } else if (op == 2) {
                 if (compraActual.getLineasCompra().isEmpty()) {
-                    System.out.println("⚠️ El carrito está vacío. Agregue productos primero.");
+                    System.out.println(" El carrito está vacío. Agregue productos primero.");
                     continue;
                 }
 
@@ -645,7 +645,7 @@ public class Main {
                     }
 
                     System.out.println("\n--------------------------------------------------");
-                    System.out.println("🎉 ¡COMPRA COMPLETADA CON ÉXITO! (ID: " + compraActual.getIdVenta() + ")");
+                    System.out.println(" ¡COMPRA COMPLETADA CON ÉXITO! (ID: " + compraActual.getIdVenta() + ")");
                     System.out.println("Productos totales en líneas: " + compraActual.getLineasCompra().size());
                     System.out.println("TOTAL FINAL: $" + compraActual.getTotalVenta());
                     System.out.println("--------------------------------------------------");
@@ -655,20 +655,20 @@ public class Main {
                     op = 0;
 
                 } catch (Exception e) {
-                    System.out.println("❌ Error al finalizar la compra: " + e.getMessage());
+                    System.out.println(" Error al finalizar la compra: " + e.getMessage());
                     compraActual = new Compra(nextCompraId, clienteComprador, mp);
                 }
             }
         } while (op != 0);
 
         if (!compraExitosa) {
-            System.out.println("🛒 Operación de compra cancelada.");
+            System.out.println(" Operación de compra cancelada.");
         }
     }
 
-    // ------------------------------------------------------------------
+    
 // Utilidades lectura
-// ------------------------------------------------------------------
+
     private static int leerEntero() {
         int valor;
         while (!scanner.hasNextInt()) {
