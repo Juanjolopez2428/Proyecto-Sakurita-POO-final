@@ -34,7 +34,7 @@ public class Producto {
         this.estadoProducto = false;
     }
 
-    // Otros constructores opcionales (sin validación estricta)
+
     public Producto(int idProducto, String nombre, double precio, int stock, String categoria) {
         this.idProducto = idProducto;
         this.nombre = nombre;
@@ -62,6 +62,10 @@ public class Producto {
     public String getId() { return id; }
     public int getStock() { return stock; }
     public String getCategoria() { return categoria; }
+
+    public String getFechaLanzamiento() {
+        return fechaLanzamiento;
+    }
 
     public void setIdProducto(int idProducto) { this.idProducto = idProducto; }
     public void setNombre(String nombre) { this.nombre = nombre; }

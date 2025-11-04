@@ -49,6 +49,50 @@ public class Compra {
     public double getTotalVenta() { return totalVenta; }
     public String getEstadoVenta() { return estadoVenta; }
 
+    public LocalDate getFechaVenta() {
+        return fechaVenta;
+    }
+
+    public Cliente getCliente() {
+        return cliente;
+    }
+
+    public MetodoPago getMetodoPago() {
+        return metodoPago;
+    }
+
+    public List<LineaCompra> getLineasCompra() {
+        return lineasCompra;
+    }
+
+    public void setIdVenta(int idVenta) {
+        this.idVenta = idVenta;
+    }
+
+    public void setFechaVenta(LocalDate fechaVenta) {
+        this.fechaVenta = fechaVenta;
+    }
+
+    public void setTotalVenta(double totalVenta) {
+        this.totalVenta = totalVenta;
+    }
+
+    public void setEstadoVenta(String estadoVenta) {
+        this.estadoVenta = estadoVenta;
+    }
+
+    public void setCliente(Cliente cliente) {
+        this.cliente = cliente;
+    }
+
+    public void setMetodoPago(MetodoPago metodoPago) {
+        this.metodoPago = metodoPago;
+    }
+
+    public void setLineasCompra(List<LineaCompra> lineasCompra) {
+        this.lineasCompra = lineasCompra;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();

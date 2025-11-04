@@ -2,7 +2,7 @@ package Produccion;
 
 import Usuarios.Usuario;
 import Ventas.Producto;
-import Excepciones.ProductoInvalidoException; //
+import Excepciones.ProductoInvalidoException;
 import java.time.LocalDate;
 
 public class DesarrolladorProducto extends Usuario {
@@ -24,10 +24,7 @@ public class DesarrolladorProducto extends Usuario {
         this.especialidad = especialidad;
     }
 
-    /**
-     * Crea un nuevo producto validando los datos.
-     * Si los datos son inválidos, captura la excepción
-     */
+
     public Producto crearProducto(int idProducto, String nombre, String descripcion,
                                   double precio, int stock, String fechaLanzamiento,
                                   String categoria) {
@@ -35,7 +32,7 @@ public class DesarrolladorProducto extends Usuario {
                 ") está creando el producto: " + nombre);
 
         try {
-            // Constructor de Producto con validación
+
             Producto nuevoProducto = new Producto(
                     idProducto, nombre, descripcion, precio, stock, fechaLanzamiento, categoria
             );

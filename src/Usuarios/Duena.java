@@ -53,7 +53,14 @@ public class Duena extends Usuario {
                  String nombreUsuario, String claveMaestra) {
         super(idUsuario, emailUsuario, contrasena, "DUENA",
                 LocalDate.now(), "ACTIVA", nombreUsuario);
-        this.claveMaestra = simpleHash(claveMaestra);
+
+
+        if (claveMaestra != null && claveMaestra.length() > 5) {
+            this.claveMaestra = claveMaestra;
+        } else {
+            this.claveMaestra = simpleHash(claveMaestra);
+        }
+
         this.fechaCoronacion = LocalDate.now();
 
         // Inicialización de colecciones
@@ -94,7 +101,7 @@ public class Duena extends Usuario {
     public void registrarLineaCompra(LineaCompra l) { lineasCompra.add(l); }
     public void registrarMetodoPago(MetodoPago m) { metodosPago.add(m); }
 
-    // --- Métodos de gestión Producción ---
+    // --- Métodos de gestión
     public void registrarDesarrollador(DesarrolladorProducto d) { desarrolladores.add(d); }
     public void agregarFabrica(Fabrica f) { fabricas.add(f); }
     public void asignarTrabajadorEsclavo(Fabrica f, TrabajadorEsclavizado t) {
@@ -127,6 +134,7 @@ public class Duena extends Usuario {
 
     public RegistroEsclavos getRegistroEsclavos() { return registroEsclavos; }
     public ConsejoSombrio getConsejoSombrio() { return consejoSombrio; }
+
 
     @Override
     protected String simpleHash(String contrasena) {

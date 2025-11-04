@@ -33,7 +33,7 @@ public class AdministradorContenido extends Usuario implements MiembroConsejo {
         System.out.println(getNombreUsuario() + " ha cifrado datos en el registro.");
     }
 
-    // --- CRUD de Productos ---
+    //  CRUD de Productos
     public void crearNuevoProducto(String id, String nombre, double precio, String descripcion) {
         if (!permisosEdicion) {
             System.out.println(" No tienes permiso para crear productos.");

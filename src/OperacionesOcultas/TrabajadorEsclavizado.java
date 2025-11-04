@@ -37,9 +37,41 @@ public class TrabajadorEsclavizado {
     }
 
     public void trabajar() {
-        // Puedes agregar lógica más compleja aquí
+
         String nombreFabrica = this.asignadoA != null ? this.asignadoA.getPais() : "ninguna fábrica";
 
         System.out.println("El trabajador " + this.idTrabajador + " está trabajando en la fábrica de " + nombreFabrica + ".");
+    }
+
+    public String getPaisOrigen() {
+        return paisOrigen;
+    }
+
+    public void setPaisOrigen(String paisOrigen) {
+        this.paisOrigen = paisOrigen;
+    }
+
+    public int getEdad() {
+        return edad;
+    }
+
+    public void setEdad(int edad) {
+        this.edad = edad;
+    }
+
+    public LocalDate getFechaCaptura() {
+        return fechaCaptura;
+    }
+
+    public void setFechaCaptura(LocalDate fechaCaptura) {
+        this.fechaCaptura = fechaCaptura;
+    }
+
+    public String getSalud() {
+        return salud;
+    }
+
+    public void setSalud(String salud) {
+        this.salud = salud;
     }
 }

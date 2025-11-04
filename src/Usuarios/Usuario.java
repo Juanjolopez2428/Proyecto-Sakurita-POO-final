@@ -15,7 +15,13 @@ public abstract class Usuario {
     public Usuario(int idUsuario, String emailUsuario, String contrasena, String rol, LocalDate fechaRegistro, String estadoCuenta, String nombreUsuario) {
         this.idUsuario = idUsuario;
         this.emailUsuario = emailUsuario;
-        this.contrasena = simpleHash(contrasena);
+
+        if (contrasena != null && contrasena.length() > 5) {
+            this.contrasena = contrasena;
+        } else {
+            this.contrasena = simpleHash(contrasena);
+        }
+
         this.rol = rol;
         this.fechaRegistro = fechaRegistro;
         this.estadoCuenta = estadoCuenta;
@@ -28,7 +34,7 @@ public abstract class Usuario {
     @Override
     public boolean equals(Object o){
         if( this == o) return true;
-        if(o == null|| getClass() !=o.getClass()) return false; //Comparar usuarios por Id
+        if(o == null|| getClass() !=o.getClass()) return false;
         Usuario usuario = (Usuario) o;
         return idUsuario == usuario.idUsuario;
     }
